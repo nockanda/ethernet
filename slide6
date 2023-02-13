@@ -1,0 +1,21 @@
+//이더넷 쉴드를 사용하기 위해서 필요한 라이브러리
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+
+IPAddress ip(192,168,0,123);
+
+void setup() {
+  Serial.begin(9600); //결과를 PC에 보내서 시리얼모니터에 출력하겠다!
+  //Ethernet.begin(mac); //동적IP주소 할당
+  Ethernet.begin(mac, ip); //수동IP주소 할당
+
+  Serial.print("인터넷 공유기로 부터 받은 IP주소=");
+  Serial.println(Ethernet.localIP());
+}
+
+void loop() {
+  
+}
+
