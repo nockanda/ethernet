@@ -1,0 +1,58 @@
+//이더넷 쉴드를 사용하기 위해서 필요한 라이브러리
+#include <SPI.h>
+#include <Ethernet.h>
+#include "DHT.h"
+#define DHTPIN 3  
+#define DHTTYPE DHT11 
+DHT dht(DHTPIN, DHTTYPE);
+
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+
+IPAddress ip(192,168,0,123);
+
+EthernetClient client;
+
+//http://www.kma.go.kr/weather/forecast/mid-term-rss3.jsp?stnId=159
+char server[] = "www.kma.go.kr"; //내가 접속할 서버의 호스트 주소
+
+void setup() {
+  Serial.begin(9600); //결과를 PC에 보내서 시리얼모니터에 출력하겠다!
+  Ethernet.begin(mac); //동적IP주소 할당
+  //Ethernet.begin(mac, ip); //수동IP주소 할당
+
+  Serial.print("인터넷 공유기로 부터 받은 IP주소=");
+  Serial.println(Ethernet.localIP());
+
+  //서버와 접속한다!
+  if (client.connect(server, 80)) {
+    Serial.println("클라이언트가 서버와 접속했다!");
+    //내가 보낼 request를 전송한다
+    client.println("GET /weather/forecast/mid-term-rss3.jsp?stnId=159 HTTP/1.1");
+    client.println("Host: www.kma.go.kr");
+    client.println("Connection: close");
+    client.println();
+
+    //클라이언트가 보낸 request에 대해서
+    //서버가 response할때까지 대기한다!
+    while(!client.available());
+    //내가 언제까지 기다려야하지...?
+
+    //서버로부터 응답을 받는다  
+    while(client.available()){
+      Serial.write(client.read());
+    }
+ 
+    //접속종료
+    Serial.println("접속이 해제되었습니다");
+    client.stop();
+  } 
+  else {
+    Serial.println("서버와 접속에 실패했습니다!");
+  }
+}
+
+void loop() {
+   
+  
+}
+
