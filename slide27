@@ -1,0 +1,98 @@
+//2.아두이노에 led를 3번에 연결하고 '0'을 수신하면 LED를 OFF하고 '1'을 수신하면 LED를 ON하는 예제를 구현하시오!(with 스마트폰)
+#include <SPI.h>
+#include <Ethernet.h>
+#include <PubSubClient.h>
+
+#define myled 3
+
+//내 인터넷 장비의 MAC 주소를 설정하겠다!
+byte mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED };
+
+//내가 수동으로 IP를 발급받고자 할때의 IP
+IPAddress ip(172, 16, 0, 100);
+
+//MQTT 브로커(=서버)의 주소
+//외국에서 공짜로 제공하는 MQTT 서버
+const char* mqtt_server = "broker.mqtt-dashboard.com";
+
+unsigned long t = 0; //millis() : 아두이노 내부 시간값을 반환
+
+//MQTT메시지 수신부(=함수포인터)
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+  
+  if(payload[0] == '0'){
+    digitalWrite(myled,LOW);
+  }else if(payload[0] == '1'){
+    digitalWrite(myled,HIGH);
+  }
+}
+
+EthernetClient ethClient; //TCP클라이언트
+PubSubClient client(ethClient);
+
+//상황에따라서 서버와 클라이언트가 연결이 끊어질 수 있기때문에
+//항시 재접속을 염두해두어야한다!
+//MQTT는 상호간에 연결을 유지하고 통신하는 프로토콜
+void reconnect() {
+  //서버와 클라이언트가 연결이 될때까지 탈출할 수 없는 무한루프
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    //서버와 클라이언트가 연결을 한다!
+    //클라이언트 ID는 랜덤하게 구성할 것
+    String clientId = "Nockanda-";
+    clientId += String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      //구독할 TOPIC을 여기서 지정
+      //접속이 확실히 완료된 다음에 하는 것이다!
+      client.subscribe("nockanda/ethernet/rx");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(myled,OUTPUT);
+  //MQTT브로커는 대부분 1883포트를 사용한다!
+  client.setServer(mqtt_server, 1883);
+  //메시지가 수신되었을때 호출될 함수를 지정하시오!
+  client.setCallback(callback);
+
+  //인터넷 공유기와 접속
+  //Ethernet.begin(mac, ip); //내가 ip주소를 선택하겠다!
+  Ethernet.begin(mac); //인터넷 공유기가 발급하는 주소 아무거나 쓰겠다!
+  
+  randomSeed(micros()); //난수
+  
+  //잠깐 쉬는시간~
+  delay(1500);
+}
+
+void loop()
+{
+  if (!client.connected()) {
+    //서버와 클라이언트가 연결이 안되었다면 연결하겠다!
+    reconnect();
+  }
+  client.loop(); //라이브러리에서 필요한 함수
+
+  if(millis() - t > 2000){
+    t = millis();
+    client.publish("nockanda/ethernet/tx","나는 이더넷 쉴드이다!");
+  } 
+}
+
